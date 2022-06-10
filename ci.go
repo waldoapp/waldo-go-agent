@@ -98,26 +98,41 @@ func (ci *ciInfo) extractFullInfo() {
 }
 
 func (ci *ciInfo) extractFullInfoFromAppCenter() {
+	//
+	// https://docs.microsoft.com/en-us/appcenter/build/custom/variables/
+	//
 	ci.gitBranch = os.Getenv("APPCENTER_BRANCH")
 	ci.gitCommit = "" //os.Getenv("???") -- not currently supported?
 }
 
 func (ci *ciInfo) extractFullInfoFromAzureDevOps() {
+	//
+	// https://docs.microsoft.com/en-us/azure/devops/pipelines/build/variables#build-variables-devops-services
+	//
 	ci.gitBranch = os.Getenv("BUILD_SOURCEBRANCHNAME")
 	ci.gitCommit = os.Getenv("BUILD_SOURCEVERSION")
 }
 
 func (ci *ciInfo) extractFullInfoFromBitrise() {
+	//
+	// https://devcenter.bitrise.io/en/references/available-environment-variables.html
+	//
 	ci.gitBranch = os.Getenv("BITRISE_GIT_BRANCH")
 	ci.gitCommit = os.Getenv("BITRISE_GIT_COMMIT")
 }
 
 func (ci *ciInfo) extractFullInfoFromCircleCI() {
+	//
+	// https://circleci.com/docs2/2.0/env-vars#built-in-environment-variables
+	//
 	ci.gitBranch = os.Getenv("CIRCLE_BRANCH")
 	ci.gitCommit = os.Getenv("CIRCLE_SHA1")
 }
 
 func (ci *ciInfo) extractFullInfoFromCodeBuild() {
+	//
+	// https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-env-vars.html
+	//
 	trigger := os.Getenv("CODEBUILD_WEBHOOK_TRIGGER")
 
 	if strings.HasPrefix(trigger, "branch/") {
@@ -130,6 +145,9 @@ func (ci *ciInfo) extractFullInfoFromCodeBuild() {
 }
 
 func (ci *ciInfo) extractFullInfoFromGitHubActions() {
+	//
+	// https://docs.github.com/en/actions/learn-github-actions/environment-variables#default-environment-variables
+	//
 	eventName := os.Getenv("GITHUB_EVENT_NAME")
 	refType := os.Getenv("GITHUB_REF_TYPE")
 
@@ -176,19 +194,25 @@ func (ci *ciInfo) extractFullInfoFromTeamCity() {
 }
 
 func (ci *ciInfo) extractFullInfoFromTravisCI() {
+	//
+	// https://docs.travis-ci.com/user/environment-variables/#default-environment-variables
+	//
 	ci.gitBranch = os.Getenv("TRAVIS_BRANCH")
 	ci.gitCommit = os.Getenv("TRAVIS_COMMIT")
 }
 
 func (ci *ciInfo) extractFullInfoFromXcodeCloud() {
+	//
 	// https://developer.apple.com/documentation/xcode/environment-variable-reference
-
+	//
 	ci.gitBranch = os.Getenv("CI_BRANCH")
+
 	if ci.gitBranch == "" {
 		ci.gitBranch = os.Getenv("CI_PULL_REQUEST_SOURCE_BRANCH")
 	}
 
 	ci.gitCommit = os.Getenv("CI_COMMIT")
+
 	if ci.gitCommit == "" {
 		ci.gitCommit = os.Getenv("CI_PULL_REQUEST_SOURCE_COMMIT")
 	}
