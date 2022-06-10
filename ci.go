@@ -181,8 +181,17 @@ func (ci *ciInfo) extractFullInfoFromTravisCI() {
 }
 
 func (ci *ciInfo) extractFullInfoFromXcodeCloud() {
+	// https://developer.apple.com/documentation/xcode/environment-variable-reference
+
 	ci.gitBranch = os.Getenv("CI_BRANCH")
+	if ci.gitBranch == "" {
+		ci.gitBranch = os.Getenv("CI_PULL_REQUEST_SOURCE_BRANCH")
+	}
+
 	ci.gitCommit = os.Getenv("CI_COMMIT")
+	if ci.gitCommit == "" {
+		ci.gitCommit = os.Getenv("CI_PULL_REQUEST_SOURCE_COMMIT")
+	}
 }
 
 //-----------------------------------------------------------------------------
