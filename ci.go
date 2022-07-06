@@ -24,7 +24,7 @@ const (
 	circleCI
 	codeBuild
 	gitHubActions
-	Jenkins
+	jenkins
 	teamCity
 	travisCI
 	xcodeCloud
@@ -80,7 +80,7 @@ func (ci *ciInfo) extractFullInfo() {
 	case gitHubActions:
 		ci.extractFullInfoFromGitHubActions()
 
-	case Jenkins:
+	case jenkins:
 		ci.extractFullInfoFromJenkins()
 
 	case teamCity:
@@ -241,7 +241,7 @@ func detectCIProvider() ciProvider {
 		return gitHubActions
 
 	case onJenkins():
-		return Jenkins
+		return jenkins
 
 	case onTeamCity():
 		return teamCity
