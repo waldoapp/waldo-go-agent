@@ -166,11 +166,14 @@ func (ua *uploadAction) authorization() string {
 
 func (ua *uploadAction) buildContentType() string {
 	switch ua.buildSuffix {
+	case "apk":
+		return binaryContentType
+
 	case "app":
 		return zipContentType
 
 	default:
-		return binaryContentType
+		return ""
 	}
 }
 
@@ -193,6 +196,13 @@ func (ua *uploadAction) createBuildPayload() error {
 	buildName := filepath.Base(ua.absBuildPath)
 
 	switch ua.buildSuffix {
+	case "apk":
+		if !isRegular(ua.absBuildPath) {
+			return fmt.Errorf("Unable to read build at ‘%s’", ua.absBuildPath)
+		}
+
+		return nil
+
 	case "app":
 		if !isDir(ua.absBuildPath) {
 			return fmt.Errorf("Unable to read build at ‘%s’", ua.absBuildPath)
@@ -201,11 +211,7 @@ func (ua *uploadAction) createBuildPayload() error {
 		return zipFolder(ua.absBuildPayloadPath, parentPath, buildName)
 
 	default:
-		if !isRegular(ua.absBuildPath) {
-			return fmt.Errorf("Unable to read build at ‘%s’", ua.absBuildPath)
-		}
-
-		return nil
+		return fmt.Errorf("Unable to read build at ‘%s’", ua.absBuildPath)
 	}
 }
 
@@ -293,7 +299,11 @@ func (ua *uploadAction) uploadBuild() error {
 	}
 
 	req.Header.Add("Authorization", ua.authorization())
-	req.Header.Add("Content-Type", ua.buildContentType())
+
+	if contentType := ua.buildContentType(); len(contentType) > 0 {
+		req.Header.Add("Content-Type", contentType)
+	}
+
 	req.Header.Add("User-Agent", ua.userAgent())
 
 	dumpRequest(ua.userVerbose, req, false)

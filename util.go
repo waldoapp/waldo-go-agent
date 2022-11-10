@@ -94,7 +94,7 @@ func validateBuildPath(buildPath string) (string, string, string, error) {
 	case "apk":
 		return buildPath, buildSuffix, "Android", nil
 
-	case "app", "ipa":
+	case "app":
 		return buildPath, buildSuffix, "iOS", nil
 
 	default:
