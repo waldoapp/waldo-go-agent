@@ -9,11 +9,13 @@ import (
 
 const (
 	agentName    = "Waldo Agent"
-	agentVersion = "2.0.2"
+	agentVersion = "2.1.0"
 
 	defaultAPIBuildEndpoint   = "https://api.waldo.com/versions"
 	defaultAPIErrorEndpoint   = "https://api.waldo.com/uploadError"
 	defaultAPITriggerEndpoint = "https://api.waldo.com/suites"
+
+	maxNetworkAttempts = 2
 )
 
 var (
@@ -49,6 +51,7 @@ func displaySummary(context any) {
 		ta := context.(*triggerAction)
 
 		fmt.Printf("\n")
+		fmt.Printf("Git commit:          %s\n", summarize(ta.gitCommit()))
 		fmt.Printf("Rule name:           %s\n", summarize(ta.ruleName()))
 		fmt.Printf("Upload token:        %s\n", summarizeSecure(ta.uploadToken()))
 		fmt.Printf("\n")
@@ -87,6 +90,7 @@ USAGE: waldo trigger [options]
 
 OPTIONS:
 
+  --git_commit <value>    Hash of originating git commit
   --help                  Display available options and exit
   --rule_name <value>     Rule name
   --upload_token <value>  Upload token (overrides WALDO_UPLOAD_TOKEN)
@@ -119,10 +123,14 @@ func displayVersion() {
 	fmt.Printf("%s\n", detectRTInfo().version())
 }
 
-func fail(err error) {
+func emitError(err error) {
 	fmt.Printf("\n") // flush stdout
 
 	os.Stderr.WriteString(fmt.Sprintf("waldo: %v\n", err))
+}
+
+func fail(err error) {
+	emitError(err)
 
 	os.Exit(1)
 }
@@ -148,9 +156,7 @@ func failUnknownOpt(opt string) {
 }
 
 func failUsage(err error) {
-	fmt.Printf("\n") // flush stdout
-
-	os.Stderr.WriteString(fmt.Sprintf("waldo: %v\n", err))
+	emitError(err)
 
 	displayUsage()
 
@@ -240,11 +246,7 @@ func parseArgs() {
 			}
 
 		case "--git_commit":
-			if isUploadCommand() {
-				agentGitCommit, args = parseOption(arg, args)
-			} else {
-				failUnknownOpt(arg)
-			}
+			agentGitCommit, args = parseOption(arg, args)
 
 		case "--rule_name":
 			if isTriggerCommand() {
@@ -307,6 +309,7 @@ func performTriggerAction() {
 	ta := newTriggerAction(
 		agentUploadToken,
 		agentRuleName,
+		agentGitCommit,
 		agentVerbose,
 		getOverrides())
 
@@ -316,13 +319,11 @@ func performTriggerAction() {
 
 	displaySummary(ta)
 
-	fmt.Printf("Triggering run on Waldo\n")
-
 	if err := ta.perform(); err != nil {
 		fail(err)
 	}
 
-	fmt.Printf("Run successfully triggered on Waldo!\n")
+	fmt.Printf("\nRun successfully triggered on Waldo!\n")
 }
 
 func performUploadAction() {
@@ -343,8 +344,6 @@ func performUploadAction() {
 	}
 
 	displaySummary(ua)
-
-	fmt.Printf("Uploading build to Waldo\n")
 
 	if err := ua.perform(); err != nil {
 		fail(err)

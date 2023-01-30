@@ -38,3 +38,13 @@ func dumpResponse(verbose bool, resp *http.Response, body bool) {
 		}
 	}
 }
+
+func shouldRetry(resp *http.Response) bool {
+	switch resp.StatusCode {
+	case 408, 429, 500, 502, 503, 504:
+		return true
+
+	default:
+		return false
+	}
+}

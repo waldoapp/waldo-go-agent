@@ -117,11 +117,11 @@ func (ua *uploadAction) perform() error {
 	}
 
 	if err == nil {
-		err = ua.uploadBuild()
+		err = ua.uploadBuildWithRetry()
 	}
 
 	if err != nil {
-		ua.uploadError(err)
+		ua.uploadErrorWithRetry(err)
 	}
 
 	return err
@@ -186,6 +186,16 @@ func (ua *uploadAction) checkBuildStatus(resp *http.Response) error {
 
 	if status < 200 || status > 299 {
 		return fmt.Errorf("Unable to upload build to Waldo, HTTP status: %d", status)
+	}
+
+	return nil
+}
+
+func (ua *uploadAction) checkErrorStatus(resp *http.Response) error {
+	status := resp.StatusCode
+
+	if status < 200 || status > 299 {
+		return fmt.Errorf("Unable to upload error to Waldo, HTTP status: %d", status)
 	}
 
 	return nil
@@ -279,13 +289,15 @@ func (ua *uploadAction) makeErrorURL() string {
 	return errorURL
 }
 
-func (ua *uploadAction) uploadBuild() error {
+func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
+	fmt.Printf("Uploading build to Waldo…\n")
+
 	url := ua.makeBuildURL()
 
 	file, err := os.Open(ua.absBuildPayloadPath)
 
 	if err != nil {
-		return fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %s", err, url)
+		return false, fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %s", err, url)
 	}
 
 	defer file.Close()
@@ -295,7 +307,7 @@ func (ua *uploadAction) uploadBuild() error {
 	req, err := http.NewRequest("POST", url, file)
 
 	if err != nil {
-		return fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %s", err, url)
+		return false, fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %s", err, url)
 	}
 
 	req.Header.Add("Authorization", ua.authorization())
@@ -311,17 +323,33 @@ func (ua *uploadAction) uploadBuild() error {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		return fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %s", err, url)
+		return retryAllowed, fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %s", err, url)
 	}
 
 	dumpResponse(ua.userVerbose, resp, true)
 
 	defer resp.Body.Close()
 
-	return ua.checkBuildStatus(resp)
+	return retryAllowed && shouldRetry(resp), ua.checkBuildStatus(resp)
 }
 
-func (ua *uploadAction) uploadError(err error) error {
+func (ua *uploadAction) uploadBuildWithRetry() error {
+	for attempts := 1; attempts <= maxNetworkAttempts; attempts++ {
+		retry, err := ua.uploadBuild(attempts < maxNetworkAttempts)
+
+		if !retry || err == nil {
+			return err
+		}
+
+		emitError(err)
+
+		fmt.Printf("\nFailed upload attempts: %d -- retrying…\n\n", attempts)
+	}
+
+	return nil
+}
+
+func (ua *uploadAction) uploadError(err error, retryAllowed bool) (bool, error) {
 	url := ua.makeErrorURL()
 	body := ua.makeErrorPayload(err)
 
@@ -330,7 +358,7 @@ func (ua *uploadAction) uploadError(err error) error {
 	req, err := http.NewRequest("POST", url, strings.NewReader(body))
 
 	if err != nil {
-		return err
+		return false, fmt.Errorf("Unable to upload error to Waldo, error: %v, url: %s", err, url)
 	}
 
 	req.Header.Add("Authorization", ua.authorization())
@@ -342,12 +370,28 @@ func (ua *uploadAction) uploadError(err error) error {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		return err
+		return retryAllowed, fmt.Errorf("Unable to upload error to Waldo, error: %v, url: %s", err, url)
 	}
+
+	// dumpResponse(ua.userVerbose, resp, true)
 
 	defer resp.Body.Close()
 
-	// dumpResponse(ua.userVerbose, resp, true)
+	return retryAllowed && shouldRetry(resp), ua.checkErrorStatus(resp)
+}
+
+func (ua *uploadAction) uploadErrorWithRetry(err error) error {
+	for attempts := 1; attempts <= maxNetworkAttempts; attempts++ {
+		retry, tmpErr := ua.uploadError(err, attempts < maxNetworkAttempts)
+
+		if !retry || tmpErr == nil {
+			return tmpErr
+		}
+
+		// emitError(tmpErr)
+
+		// fmt.Printf("\nFailed upload error attempts: %d -- retrying…\n\n", attempts)
+	}
 
 	return nil
 }
