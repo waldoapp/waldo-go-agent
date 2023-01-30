@@ -7,6 +7,7 @@ import (
 )
 
 type triggerAction struct {
+	userGitCommit   string
 	userOverrides   map[string]string
 	userRuleName    string
 	userUploadToken string
@@ -19,9 +20,10 @@ type triggerAction struct {
 
 //-----------------------------------------------------------------------------
 
-func newTriggerAction(uploadToken, ruleName string, verbose bool, overrides map[string]string) *triggerAction {
+func newTriggerAction(uploadToken, ruleName, gitCommit string, verbose bool, overrides map[string]string) *triggerAction {
 	return &triggerAction{
 		rtInfo:          detectRTInfo(),
+		userGitCommit:   gitCommit,
 		userOverrides:   overrides,
 		userRuleName:    ruleName,
 		userUploadToken: uploadToken,
@@ -29,6 +31,10 @@ func newTriggerAction(uploadToken, ruleName string, verbose bool, overrides map[
 }
 
 //-----------------------------------------------------------------------------
+
+func (ta *triggerAction) gitCommit() string {
+	return ta.userGitCommit
+}
 
 func (ta *triggerAction) ruleName() string {
 	return ta.userRuleName
@@ -45,7 +51,7 @@ func (ta *triggerAction) version() string {
 //-----------------------------------------------------------------------------
 
 func (ta *triggerAction) perform() error {
-	return ta.triggerRun()
+	return ta.triggerRunWithRetry()
 }
 
 func (ta *triggerAction) validate() error {
@@ -96,6 +102,7 @@ func (ta *triggerAction) makePayload() string {
 	appendIfNotEmpty(&payload, "agentVersion", agentVersion)
 	appendIfNotEmpty(&payload, "arch", ta.rtInfo.arch)
 	appendIfNotEmpty(&payload, "ci", ta.ciInfo.provider.string())
+	appendIfNotEmpty(&payload, "gitSha", ta.userGitCommit)
 	appendIfNotEmpty(&payload, "platform", ta.rtInfo.platform)
 	appendIfNotEmpty(&payload, "ruleName", ta.userRuleName)
 	appendIfNotEmpty(&payload, "wrapperName", ta.userOverrides["wrapperName"])
@@ -116,7 +123,9 @@ func (ta *triggerAction) makeURL() string {
 	return triggerURL
 }
 
-func (ta *triggerAction) triggerRun() error {
+func (ta *triggerAction) triggerRun(retryAllowed bool) (bool, error) {
+	fmt.Printf("Triggering run on Waldo…\n")
+
 	url := ta.makeURL()
 	body := ta.makePayload()
 
@@ -125,7 +134,7 @@ func (ta *triggerAction) triggerRun() error {
 	req, err := http.NewRequest("POST", url, strings.NewReader(body))
 
 	if err != nil {
-		return fmt.Errorf("Unable to trigger run on Waldo, error: %v, url: %s", err, url)
+		return false, fmt.Errorf("Unable to trigger run on Waldo, error: %v, url: %s", err, url)
 	}
 
 	req.Header.Add("Authorization", ta.authorization())
@@ -137,14 +146,31 @@ func (ta *triggerAction) triggerRun() error {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		return fmt.Errorf("Unable to trigger run on Waldo, error: %v, url: %s", err, url)
+		return retryAllowed, fmt.Errorf("Unable to trigger run on Waldo, error: %v, url: %s", err, url)
 	}
 
 	dumpResponse(ta.userVerbose, resp, true)
 
 	defer resp.Body.Close()
 
-	return ta.checkTriggerStatus(resp)
+	return retryAllowed && shouldRetry(resp), ta.checkTriggerStatus(resp)
+}
+
+func (ta *triggerAction) triggerRunWithRetry() error {
+	for attempts := 1; attempts <= maxNetworkAttempts; attempts++ {
+		retry, err := ta.triggerRun(attempts < maxNetworkAttempts)
+
+		if !retry || err == nil {
+			return err
+		}
+
+		emitError(err)
+
+		fmt.Printf("\nFailed trigger attempts: %d -- retrying…\n\n", attempts)
+	}
+
+	return nil
+
 }
 
 func (ta *triggerAction) userAgent() string {

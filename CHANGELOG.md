@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [2.1.0] - 2023-01-30
+
+### Added
+
+- Added new `--git_commit` options to `trigger` verb.
+- Added support for network retry.
+
 ## [2.0.2] - 2022-11-10
 
 ### Changed
@@ -24,7 +31,8 @@ This project adheres to [Semantic Versioning].
 
 Initial public release of rewritten agent.
 
-[Unreleased]:   https://github.com/waldoapp/waldo-go-agent/compare/2.0.2...HEAD
+[Unreleased]:   https://github.com/waldoapp/waldo-go-agent/compare/2.1.0...HEAD
+[2.1.0]:        https://github.com/waldoapp/waldo-go-agent/compare/2.0.2...2.1.0
 [2.0.2]:        https://github.com/waldoapp/waldo-go-agent/compare/2.0.1...2.0.2
 [2.0.1]:        https://github.com/waldoapp/waldo-go-agent/compare/2.0.0...2.0.1
 [2.0.0]:        https://github.com/waldoapp/waldo-go-agent/compare/1a5f9ae...2.0.0
