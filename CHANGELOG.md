@@ -39,4 +39,3 @@ Initial public release of rewritten agent.
 
 [Keep a Changelog]:     https://keepachangelog.com
 [Semantic Versioning]:  https://semver.org
-****
