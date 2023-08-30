@@ -302,7 +302,11 @@ func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 
 	defer file.Close()
 
-	client := &http.Client{}
+	client := &http.Client{
+		Transport: &http.Transport{
+              		TLSHandshakeTimeout: 0,
+              		ResponseHeaderTimeout: 0,
+              		ExpectContinueTimeout: 0}}
 
 	req, err := http.NewRequest("POST", url, file)
 
