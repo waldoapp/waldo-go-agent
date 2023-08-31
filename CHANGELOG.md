@@ -11,7 +11,7 @@ This project adheres to [Semantic Versioning].
 
 ### Changed
 
-- Explicitly remove timeouts from Http client
+- Explicitly removed timeouts from HTTP client.
 
 ## [2.1.0] - 2023-01-30
 
@@ -37,7 +37,8 @@ This project adheres to [Semantic Versioning].
 
 Initial public release of rewritten agent.
 
-[Unreleased]:   https://github.com/waldoapp/waldo-go-agent/compare/2.1.0...HEAD
+[Unreleased]:   https://github.com/waldoapp/waldo-go-agent/compare/2.1.1...HEAD
+[2.1.1]:        https://github.com/waldoapp/waldo-go-agent/compare/2.1.0...2.1.1
 [2.1.0]:        https://github.com/waldoapp/waldo-go-agent/compare/2.0.2...2.1.0
 [2.0.2]:        https://github.com/waldoapp/waldo-go-agent/compare/2.0.1...2.0.2
 [2.0.1]:        https://github.com/waldoapp/waldo-go-agent/compare/2.0.0...2.0.1
