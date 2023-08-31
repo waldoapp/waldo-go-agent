@@ -7,6 +7,12 @@ This project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [2.1.1] - 2023-08-31
+
+### Changed
+
+- Explicitly remove timeouts from Http client
+
 ## [2.1.0] - 2023-01-30
 
 ### Added
