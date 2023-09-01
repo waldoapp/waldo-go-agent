@@ -7,6 +7,12 @@ This project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [2.1.2] - 2023-09-01
+
+### Changed
+
+- Add retry count to upload query params.
+
 ## [2.1.1] - 2023-08-31
 
 ### Changed
@@ -37,7 +43,8 @@ This project adheres to [Semantic Versioning].
 
 Initial public release of rewritten agent.
 
-[Unreleased]:   https://github.com/waldoapp/waldo-go-agent/compare/2.1.1...HEAD
+[Unreleased]:   https://github.com/waldoapp/waldo-go-agent/compare/2.1.2...HEAD
+[2.1.2]:        https://github.com/waldoapp/waldo-go-agent/compare/2.1.1...2.1.2
 [2.1.1]:        https://github.com/waldoapp/waldo-go-agent/compare/2.1.0...2.1.1
 [2.1.0]:        https://github.com/waldoapp/waldo-go-agent/compare/2.0.2...2.1.0
 [2.0.2]:        https://github.com/waldoapp/waldo-go-agent/compare/2.0.1...2.0.2

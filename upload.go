@@ -11,7 +11,7 @@ import (
 )
 
 type uploadAction struct {
-       retryCount      int
+        retryCount      int
 	userBuildPath   string
 	userGitBranch   string
 	userGitCommit   string
