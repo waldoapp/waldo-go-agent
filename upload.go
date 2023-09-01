@@ -6,10 +6,12 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
 type uploadAction struct {
+       retryCount      int
 	userBuildPath   string
 	userGitBranch   string
 	userGitCommit   string
@@ -33,6 +35,7 @@ type uploadAction struct {
 
 func newUploadAction(buildPath, uploadToken, variantName, gitCommit, gitBranch string, verbose bool, overrides map[string]string) *uploadAction {
 	return &uploadAction{
+	        retryCount:      0,
 		rtInfo:          detectRTInfo(),
 		userBuildPath:   buildPath,
 		userGitBranch:   gitBranch,
@@ -99,6 +102,10 @@ func (ua *uploadAction) variantName() string {
 
 func (ua *uploadAction) version() string {
 	return ua.rtInfo.version()
+}
+
+func (ua *uploadAction) retry() string {
+	return strconv.Itoa(ua.retryCount)
 }
 
 //-----------------------------------------------------------------------------
@@ -249,6 +256,7 @@ func (ua *uploadAction) makeBuildURL() string {
 	addIfNotEmpty(&query, "gitBranch", ua.gitInfo.branch)
 	addIfNotEmpty(&query, "gitCommit", ua.gitInfo.commit)
 	addIfNotEmpty(&query, "platform", ua.rtInfo.platform)
+	addIfNotEmpty(&query, "retry", ua.retry())
 	addIfNotEmpty(&query, "userGitBranch", ua.userGitBranch)
 	addIfNotEmpty(&query, "userGitCommit", ua.userGitCommit)
 	addIfNotEmpty(&query, "variantName", ua.userVariantName)
@@ -271,6 +279,7 @@ func (ua *uploadAction) makeErrorPayload(err error) string {
 	appendIfNotEmpty(&payload, "ciGitCommit", ua.ciInfo.gitCommit)
 	appendIfNotEmpty(&payload, "message", err.Error())
 	appendIfNotEmpty(&payload, "platform", ua.rtInfo.platform)
+	appendIfNotEmpty(&payload, "retry", ua.retry())
 	appendIfNotEmpty(&payload, "wrapperName", ua.userOverrides["wrapperName"])
 	appendIfNotEmpty(&payload, "wrapperVersion", ua.userOverrides["wrapperVersion"])
 
@@ -339,6 +348,7 @@ func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 
 func (ua *uploadAction) uploadBuildWithRetry() error {
 	for attempts := 1; attempts <= maxNetworkAttempts; attempts++ {
+	        ua.retryCount = attempts - 1
 		retry, err := ua.uploadBuild(attempts < maxNetworkAttempts)
 
 		if !retry || err == nil {
