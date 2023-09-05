@@ -9,7 +9,7 @@ import (
 
 const (
 	agentName    = "Waldo Agent"
-	agentVersion = "2.1.1"
+	agentVersion = "2.1.2"
 
 	defaultAPIBuildEndpoint   = "https://api.waldo.com/versions"
 	defaultAPIErrorEndpoint   = "https://api.waldo.com/uploadError"
