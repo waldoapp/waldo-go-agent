@@ -1,3 +1,3 @@
 module github.com/waldoapp/waldo-go-agent
 
-go 1.18
+go 1.21
