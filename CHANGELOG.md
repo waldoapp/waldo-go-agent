@@ -7,6 +7,16 @@ This project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [2.2.0] - 2024-02-22
+
+### Added
+
+- Added support for Waldo Core API.
+
+### Changed
+
+- Upgraded to use Go 1.22.
+
 ## [2.1.3] - 2023-12-14
 
 ### Changed
@@ -49,7 +59,8 @@ This project adheres to [Semantic Versioning].
 
 Initial public release of rewritten agent.
 
-[Unreleased]:   https://github.com/waldoapp/waldo-go-agent/compare/2.1.3...HEAD
+[Unreleased]:   https://github.com/waldoapp/waldo-go-agent/compare/2.2.0...HEAD
+[2.2.0]:        https://github.com/waldoapp/waldo-go-agent/compare/2.1.3...2.2.0
 [2.1.3]:        https://github.com/waldoapp/waldo-go-agent/compare/2.1.2...2.1.3
 [2.1.2]:        https://github.com/waldoapp/waldo-go-agent/compare/2.1.1...2.1.2
 [2.1.1]:        https://github.com/waldoapp/waldo-go-agent/compare/2.1.0...2.1.1
