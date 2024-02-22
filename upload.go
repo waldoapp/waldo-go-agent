@@ -11,7 +11,7 @@ import (
 )
 
 type uploadAction struct {
-        retryCount      int
+	retryCount      int
 	userBuildPath   string
 	userGitBranch   string
 	userGitCommit   string
@@ -35,7 +35,7 @@ type uploadAction struct {
 
 func newUploadAction(buildPath, uploadToken, variantName, gitCommit, gitBranch string, verbose bool, overrides map[string]string) *uploadAction {
 	return &uploadAction{
-	        retryCount:      0,
+		retryCount:      0,
 		rtInfo:          detectRTInfo(),
 		userBuildPath:   buildPath,
 		userGitBranch:   gitBranch,
@@ -298,6 +298,20 @@ func (ua *uploadAction) makeErrorURL() string {
 	return errorURL
 }
 
+func (ua *uploadAction) saveUploadMetadata(resp *http.Response) error {
+	ur, err := parseUploadResponse(resp)
+
+	if err == nil {
+		err = newUploadMetadata(ur).save()
+	}
+
+	if err != nil {
+		return fmt.Errorf("Unable to save upload metadata locally, error: %v", err)
+	}
+
+	return nil
+}
+
 func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 	fmt.Printf("Uploading build to Waldo…\n")
 
@@ -343,12 +357,22 @@ func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 
 	defer resp.Body.Close()
 
-	return retryAllowed && shouldRetry(resp), ua.checkBuildStatus(resp)
+	err = ua.checkBuildStatus(resp)
+
+	if err == nil {
+		err2 := ua.saveUploadMetadata(resp)
+
+		if err2 != nil {
+			emitError(err2)
+		}
+	}
+
+	return retryAllowed && shouldRetry(resp), err
 }
 
 func (ua *uploadAction) uploadBuildWithRetry() error {
 	for attempts := 1; attempts <= maxNetworkAttempts; attempts++ {
-	        ua.retryCount = attempts - 1
+		ua.retryCount = attempts - 1
 		retry, err := ua.uploadBuild(attempts < maxNetworkAttempts)
 
 		if !retry || err == nil {
