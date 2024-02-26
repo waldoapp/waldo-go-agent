@@ -10,16 +10,10 @@ import (
 //-----------------------------------------------------------------------------
 
 type UploadMetadata struct {
+	AppID        string    `json:"appID"`
 	AppVersionID string    `json:"appVersionID"`
-	UploadTime   time.Time `json:"uploadTime,omitempty"`
-}
-
-//-----------------------------------------------------------------------------
-
-func newUploadMetadata(ur *UploadResponse) *UploadMetadata {
-	return &UploadMetadata{
-		AppVersionID: ur.AppVersionID,
-		UploadTime:   time.Now()}
+	Host         string    `json:"host"`
+	UploadTime   time.Time `json:"uploadTime"`
 }
 
 //-----------------------------------------------------------------------------

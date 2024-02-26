@@ -9,14 +9,13 @@ import (
 //-----------------------------------------------------------------------------
 
 type UploadResponse struct {
-	AgentType     string `json:"agentType"`
-	AgentVersion  string `json:"agentVersion"`
-	ApplicationID string `json:"applicationId"`
-	AppName       string `json:"name,omitempty"`
-	AppVersion    string `json:"version,omitempty"`
-	AppVersionID  string `json:"id"`
-	GitHash       string `json:"gitSha,omitempty"`
-	// GitMetadata   string `json:"gitMetadata"`
+	AgentType     string   `json:"agentType"`
+	AgentVersion  string   `json:"agentVersion"`
+	AppID         string   `json:"applicationId"`
+	AppName       string   `json:"name,omitempty"`
+	AppVersion    string   `json:"version,omitempty"`
+	AppVersionID  string   `json:"id"`
+	GitHash       string   `json:"gitSha,omitempty"`
 	MinOSVersion  string   `json:"minimumOsVersion,omitempty"`
 	PackageName   string   `json:"packageName,omitempty"`
 	Size          int      `json:"size"`
