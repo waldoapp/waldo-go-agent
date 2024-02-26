@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type uploadAction struct {
@@ -298,11 +299,17 @@ func (ua *uploadAction) makeErrorURL() string {
 	return errorURL
 }
 
-func (ua *uploadAction) saveUploadMetadata(resp *http.Response) error {
+func (ua *uploadAction) saveUploadMetadata(resp *http.Response, host string) error {
 	ur, err := parseUploadResponse(resp)
 
 	if err == nil {
-		err = newUploadMetadata(ur).save()
+		um := &UploadMetadata{
+			AppID:        ur.AppID,
+			AppVersionID: ur.AppVersionID,
+			Host:         host,
+			UploadTime:   time.Now()}
+
+		err = um.save()
 	}
 
 	if err != nil {
@@ -360,7 +367,7 @@ func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 	err = ua.checkBuildStatus(resp)
 
 	if err == nil {
-		err2 := ua.saveUploadMetadata(resp)
+		err2 := ua.saveUploadMetadata(resp, req.URL.Host)
 
 		if err2 != nil {
 			emitError(err2)
