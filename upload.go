@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -269,24 +270,41 @@ func (ua *uploadAction) makeBuildURL() string {
 	return buildURL
 }
 
-func (ua *uploadAction) makeErrorPayload(err error) string {
-	payload := ""
+type ErrorPayloadJSON struct {
+	AgentName      string `json:"agentName"`
+	AgentVersion   string `json:"agentVersion"`
+	Arch           string `json:"arch"`
+	CI             string `json:"ci"`
+	CIGitBranch    string `json:"ciGitBranch"`
+	CIGitCommit    string `json:"ciGitCommit"`
+	Message        string `json:"message"`
+	Platform       string `json:"platform"`
+	Retry          string `json:"retry"`
+	WrapperName    string `json:"wrapperName"`
+	WrapperVersion string `json:"wrapperVersion"`
+}
 
-	appendIfNotEmpty(&payload, "agentName", agentName)
-	appendIfNotEmpty(&payload, "agentVersion", agentVersion)
-	appendIfNotEmpty(&payload, "arch", ua.rtInfo.arch)
-	appendIfNotEmpty(&payload, "ci", ua.ciInfo.provider.string())
-	appendIfNotEmpty(&payload, "ciGitBranch", ua.ciInfo.gitBranch)
-	appendIfNotEmpty(&payload, "ciGitCommit", ua.ciInfo.gitCommit)
-	appendIfNotEmpty(&payload, "message", err.Error())
-	appendIfNotEmpty(&payload, "platform", ua.rtInfo.platform)
-	appendIfNotEmpty(&payload, "retry", ua.retry())
-	appendIfNotEmpty(&payload, "wrapperName", ua.userOverrides["wrapperName"])
-	appendIfNotEmpty(&payload, "wrapperVersion", ua.userOverrides["wrapperVersion"])
+func (ua *uploadAction) makeErrorPayload(err error) (string, error) {
+	jsonStruct := ErrorPayloadJSON{
+		AgentName:      agentName,
+		AgentVersion:   agentVersion,
+		Arch:           ua.rtInfo.arch,
+		CI:             ua.ciInfo.provider.string(),
+		CIGitBranch:    ua.ciInfo.gitBranch,
+		CIGitCommit:    ua.ciInfo.gitCommit,
+		Message:        err.Error(),
+		Platform:       ua.rtInfo.platform,
+		Retry:          ua.retry(),
+		WrapperName:    ua.userOverrides["wrapperName"],
+		WrapperVersion: ua.userOverrides["wrapperVersion"],
+	}
 
-	payload = "{" + payload + "}"
+	jsonBytes, error := json.Marshal(jsonStruct)
+	if error != nil {
+		return "", fmt.Errorf("unable to encode error payload, error: %v", error)
+	}
 
-	return payload
+	return string(jsonBytes), nil
 }
 
 func (ua *uploadAction) makeErrorURL() string {
@@ -396,7 +414,10 @@ func (ua *uploadAction) uploadBuildWithRetry() error {
 
 func (ua *uploadAction) uploadError(err error, retryAllowed bool) (bool, error) {
 	url := ua.makeErrorURL()
-	body := ua.makeErrorPayload(err)
+	body, err := ua.makeErrorPayload(err)
+	if err != nil {
+		return false, err
+	}
 
 	client := &http.Client{}
 
