@@ -7,6 +7,12 @@ This project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [2.3.1] - 2024-03-15
+
+### Changed
+
+- Fix encoding of upload errors.
+
 ## [2.3.0] - 2024-02-26
 
 ### Added
@@ -65,7 +71,8 @@ This project adheres to [Semantic Versioning].
 
 Initial public release of rewritten agent.
 
-[Unreleased]:   https://github.com/waldoapp/waldo-go-agent/compare/2.3.0...HEAD
+[Unreleased]:   https://github.com/waldoapp/waldo-go-agent/compare/2.3.1...HEAD
+[2.3.1]:        https://github.com/waldoapp/waldo-go-agent/compare/2.3.0...2.3.1
 [2.3.0]:        https://github.com/waldoapp/waldo-go-agent/compare/2.2.0...2.3.0
 [2.2.0]:        https://github.com/waldoapp/waldo-go-agent/compare/2.1.3...2.2.0
 [2.1.3]:        https://github.com/waldoapp/waldo-go-agent/compare/2.1.2...2.1.3
