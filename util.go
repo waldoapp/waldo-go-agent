@@ -101,11 +101,3 @@ func validateBuildPath(buildPath string) (string, string, string, error) {
 		return "", "", "", fmt.Errorf("File extension of build at ‘%s’ is not recognized", buildPath)
 	}
 }
-
-func validateUploadToken(uploadToken string) error {
-	if len(uploadToken) == 0 {
-		return errors.New("Empty upload token")
-	}
-
-	return nil
-}
