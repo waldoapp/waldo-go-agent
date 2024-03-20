@@ -12,8 +12,11 @@ import (
 	"time"
 )
 
+//-----------------------------------------------------------------------------
+
 type uploadAction struct {
 	retryCount      int
+	userAppID       string
 	userBuildPath   string
 	userGitBranch   string
 	userGitCommit   string
@@ -35,10 +38,11 @@ type uploadAction struct {
 
 //-----------------------------------------------------------------------------
 
-func newUploadAction(buildPath, uploadToken, variantName, gitCommit, gitBranch string, verbose bool, overrides map[string]string) *uploadAction {
+func newUploadAction(buildPath, uploadToken, appID, variantName, gitCommit, gitBranch string, verbose bool, overrides map[string]string) *uploadAction {
 	return &uploadAction{
 		retryCount:      0,
 		rtInfo:          detectRTInfo(),
+		userAppID:       appID,
 		userBuildPath:   buildPath,
 		userGitBranch:   gitBranch,
 		userGitCommit:   gitCommit,
@@ -49,6 +53,26 @@ func newUploadAction(buildPath, uploadToken, variantName, gitCommit, gitBranch s
 }
 
 //-----------------------------------------------------------------------------
+
+type ErrorPayloadJSON struct {
+	AgentName      string `json:"agentName,omitempty"`
+	AgentVersion   string `json:"agentVersion,omitempty"`
+	Arch           string `json:"arch,omitempty"`
+	CI             string `json:"ci,omitempty"`
+	CIGitBranch    string `json:"ciGitBranch,omitempty"`
+	CIGitCommit    string `json:"ciGitCommit,omitempty"`
+	Message        string `json:"message,omitempty"`
+	Platform       string `json:"platform,omitempty"`
+	Retry          string `json:"retry,omitempty"`
+	WrapperName    string `json:"wrapperName,omitempty"`
+	WrapperVersion string `json:"wrapperVersion,omitempty"`
+}
+
+//-----------------------------------------------------------------------------
+
+func (ua *uploadAction) appID() string {
+	return ua.userAppID
+}
 
 func (ua *uploadAction) buildPath() string {
 	if ua.validated {
@@ -139,12 +163,6 @@ func (ua *uploadAction) perform() error {
 func (ua *uploadAction) validate() error {
 	if ua.validated {
 		return nil
-	}
-
-	err := validateUploadToken(ua.userUploadToken)
-
-	if err != nil {
-		return err
 	}
 
 	buildPath, buildSuffix, flavor, err := validateBuildPath(ua.userBuildPath)
@@ -242,7 +260,11 @@ func (ua *uploadAction) makeBuildURL() string {
 	buildURL := ua.userOverrides["apiBuildEndpoint"]
 
 	if len(buildURL) == 0 {
-		buildURL = defaultAPIBuildEndpoint
+		if strings.HasPrefix(ua.userUploadToken, "u-") {
+			buildURL = strings.ReplaceAll(defaultAPIBuildNewEndpoint, "${APP_ID}", ua.userAppID)
+		} else {
+			buildURL = defaultAPIBuildOldEndpoint
+		}
 	}
 
 	query := make(url.Values)
@@ -270,22 +292,8 @@ func (ua *uploadAction) makeBuildURL() string {
 	return buildURL
 }
 
-type ErrorPayloadJSON struct {
-	AgentName      string `json:"agentName"`
-	AgentVersion   string `json:"agentVersion"`
-	Arch           string `json:"arch"`
-	CI             string `json:"ci"`
-	CIGitBranch    string `json:"ciGitBranch"`
-	CIGitCommit    string `json:"ciGitCommit"`
-	Message        string `json:"message"`
-	Platform       string `json:"platform"`
-	Retry          string `json:"retry"`
-	WrapperName    string `json:"wrapperName"`
-	WrapperVersion string `json:"wrapperVersion"`
-}
-
 func (ua *uploadAction) makeErrorPayload(err error) (string, error) {
-	jsonStruct := ErrorPayloadJSON{
+	payload := ErrorPayloadJSON{
 		AgentName:      agentName,
 		AgentVersion:   agentVersion,
 		Arch:           ua.rtInfo.arch,
@@ -299,12 +307,13 @@ func (ua *uploadAction) makeErrorPayload(err error) (string, error) {
 		WrapperVersion: ua.userOverrides["wrapperVersion"],
 	}
 
-	jsonBytes, error := json.Marshal(jsonStruct)
-	if error != nil {
-		return "", fmt.Errorf("unable to encode error payload, error: %v", error)
+	data, err := json.Marshal(payload)
+
+	if err != nil {
+		return "", fmt.Errorf("Unable to encode JSON error payload, error: %v", err)
 	}
 
-	return string(jsonBytes), nil
+	return string(data), nil
 }
 
 func (ua *uploadAction) makeErrorURL() string {

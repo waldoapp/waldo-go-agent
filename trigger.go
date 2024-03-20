@@ -59,12 +59,6 @@ func (ta *triggerAction) validate() error {
 		return nil
 	}
 
-	err := validateUploadToken(ta.userUploadToken)
-
-	if err != nil {
-		return err
-	}
-
 	ta.ciInfo = detectCIInfo(false)
 	ta.validated = true
 

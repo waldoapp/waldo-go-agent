@@ -8,7 +8,7 @@ import (
 )
 
 func TestErrorPayloadEncoding(t *testing.T) {
-	ua := newUploadAction("/some/path", "token", "variant", "f5ebaa009c043737f30bcb0f53d7614d09968e00",
+	ua := newUploadAction("/some/path", "token", "appid", "variant", "f5ebaa009c043737f30bcb0f53d7614d09968e00",
 		"user\"my-branch", false, make(map[string]string))
 
 	ua.ciInfo = &ciInfo{
@@ -34,7 +34,7 @@ func TestErrorPayloadEncoding(t *testing.T) {
 }
 
 func TestBuildURLEncoding(t *testing.T) {
-	ua := newUploadAction("/some/path", "token", "variant", "f5ebaa009c043737f30bcb0f53d7614d09968e00",
+	ua := newUploadAction("/some/path", "token", "appid", "variant", "f5ebaa009c043737f30bcb0f53d7614d09968e00",
 		"user\"=+my-branch", false, make(map[string]string))
 
 	ua.gitInfo = &gitInfo{

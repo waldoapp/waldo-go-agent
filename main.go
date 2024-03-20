@@ -5,20 +5,23 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 )
 
 const (
 	agentName    = "Waldo Agent"
-	agentVersion = "2.3.1"
+	agentVersion = "2.4.0"
 
-	defaultAPIBuildEndpoint   = "https://api.waldo.com/versions"
-	defaultAPIErrorEndpoint   = "https://api.waldo.com/uploadError"
-	defaultAPITriggerEndpoint = "https://api.waldo.com/suites"
+	defaultAPIBuildNewEndpoint = "https://api.waldo.com/1.0/applications/${APP_ID}/versions"
+	defaultAPIBuildOldEndpoint = "https://api.waldo.com/versions"
+	defaultAPIErrorEndpoint    = "https://api.waldo.com/uploadError"
+	defaultAPITriggerEndpoint  = "https://api.waldo.com/suites"
 
 	maxNetworkAttempts = 2
 )
 
 var (
+	agentAppID       string
 	agentBuildPath   string
 	agentCommand     string
 	agentGitBranch   string
@@ -36,10 +39,6 @@ func checkBuildPath() {
 }
 
 func checkUploadToken() {
-	if len(agentUploadToken) == 0 {
-		agentUploadToken = os.Getenv("WALDO_UPLOAD_TOKEN")
-	}
-
 	if len(agentUploadToken) == 0 {
 		failMissingOpt("--upload_token")
 	}
@@ -60,6 +59,7 @@ func displaySummary(context any) {
 		ua := context.(*uploadAction)
 
 		fmt.Printf("\n")
+		fmt.Printf("App ID:              %s\n", summarize(ua.appID()))
 		fmt.Printf("Build path:          %s\n", summarize(ua.buildPath()))
 		fmt.Printf("Git branch:          %s\n", summarize(ua.gitBranch()))
 		fmt.Printf("Git commit:          %s\n", summarize(ua.gitCommit()))
@@ -84,37 +84,35 @@ func displaySummary(context any) {
 func displayUsage() {
 	switch {
 	case isTriggerCommand():
-		fmt.Printf(`OVERVIEW: Trigger run on Waldo
+		fmt.Printf(`OVERVIEW: Trigger a run on Waldo.
 
-USAGE: waldo trigger [options]
+USAGE: waldo trigger [--git_commit <c>] [--rule_name <r>] [--upload_token <t>] [--verbose]
 
 OPTIONS:
-
-  --git_commit <value>    Hash of originating git commit
-  --help                  Display available options and exit
-  --rule_name <value>     Rule name
-  --upload_token <value>  Upload token (overrides WALDO_UPLOAD_TOKEN)
-  --verbose               Display extra verbiage
-  --version               Display version and exit
+      --git_commit <c>    The originating git commit hash.
+      --rule_name <r>     An optional rule name.
+      --upload_token <t>  The upload token (overrides WALDO_UPLOAD_TOKEN).
+      --verbose           Show extra verbiage.
 `)
 
 	case isUploadCommand():
 		fallthrough
 
 	default:
-		fmt.Printf(`OVERVIEW: Upload build to Waldo
+		fmt.Printf(`OVERVIEW: Upload a build artifact to Waldo.
 
-USAGE: waldo upload [options] <build-path>
+USAGE: waldo upload [--app_id <a>] [--git_branch <b>] [--git_commit <c>] [--upload_token <t>] [--variant_name <n>] [--verbose ] <build-path>
+
+ARGUMENTS:
+  <build-path>            The path to the build artifact to upload.
 
 OPTIONS:
-
-  --git_branch <value>    Branch name for originating git commit
-  --git_commit <value>    Hash of originating git commit
-  --help                  Display available options and exit
-  --upload_token <value>  Upload token (overrides WALDO_UPLOAD_TOKEN)
-  --variant_name <value>  Variant name
-  --verbose               Display extra verbiage
-  --version               Display version and exit
+      --app_id <a>        An app ID (if not using an app token).
+      --git_branch <b>    The originating git commit branch name.
+      --git_commit <c>    The originating git commit hash.
+      --upload_token <t>  The upload token (overrides WALDO_UPLOAD_TOKEN).
+      --variant_name <n>  An optional variant name.
+      --verbose           Show extra verbiage.
 `)
 	}
 }
@@ -136,23 +134,23 @@ func fail(err error) {
 }
 
 func failMissingArg(arg string) {
-	failUsage(fmt.Errorf("Missing required argument: ‘%s’", arg))
+	failUsage(fmt.Errorf("Missing required %q argument", arg))
 }
 
 func failMissingOpt(opt string) {
-	failUsage(fmt.Errorf("Missing required option: ‘%s’", opt))
+	failUsage(fmt.Errorf("Missing required %q option", opt))
 }
 
 func failMissingOptValue(opt string) {
-	failUsage(fmt.Errorf("Missing required value for option: ‘%s’", opt))
+	failUsage(fmt.Errorf("Missing required value for %q option", opt))
 }
 
 func failUnknownArg(arg string) {
-	failUsage(fmt.Errorf("Unknown argument: ‘%s’", arg))
+	failUsage(fmt.Errorf("Unknown argument: %q", arg))
 }
 
 func failUnknownOpt(opt string) {
-	failUsage(fmt.Errorf("Unknown option: ‘%s’", opt))
+	failUsage(fmt.Errorf("Unknown option: %q", opt))
 }
 
 func failUsage(err error) {
@@ -229,10 +227,17 @@ func parseArgs() {
 	agentCommand, args = parseCommand(args)
 
 	for len(args) > 0 {
-		arg := args[0]
+		arg := trim(args[0])
 		args = args[1:]
 
 		switch arg {
+		case "--app_id":
+			if isUploadCommand() {
+				agentAppID, args = parseOptionValue(arg, args)
+			} else {
+				failUnknownOpt(arg)
+			}
+
 		case "--help":
 			displayUsage()
 
@@ -240,27 +245,27 @@ func parseArgs() {
 
 		case "--git_branch":
 			if isUploadCommand() {
-				agentGitBranch, args = parseOption(arg, args)
+				agentGitBranch, args = parseOptionValue(arg, args)
 			} else {
 				failUnknownOpt(arg)
 			}
 
 		case "--git_commit":
-			agentGitCommit, args = parseOption(arg, args)
+			agentGitCommit, args = parseOptionValue(arg, args)
 
 		case "--rule_name":
 			if isTriggerCommand() {
-				agentRuleName, args = parseOption(arg, args)
+				agentRuleName, args = parseOptionValue(arg, args)
 			} else {
 				failUnknownOpt(arg)
 			}
 
 		case "--upload_token":
-			agentUploadToken, args = parseOption(arg, args)
+			agentUploadToken, args = parseOptionValue(arg, args)
 
 		case "--variant_name":
 			if isUploadCommand() {
-				agentVariantName, args = parseOption(arg, args)
+				agentVariantName, args = parseOptionValue(arg, args)
 			} else {
 				failUnknownOpt(arg)
 			}
@@ -277,7 +282,7 @@ func parseArgs() {
 			}
 
 			if isUploadCommand() && len(agentBuildPath) == 0 {
-				agentBuildPath = arg
+				agentBuildPath = trim(arg)
 			} else {
 				failUnknownArg(arg)
 			}
@@ -286,7 +291,7 @@ func parseArgs() {
 }
 
 func parseCommand(args []string) (string, []string) {
-	switch args[0] {
+	switch trim(args[0]) {
 	case "trigger", "upload":
 		return args[0], args[1:]
 
@@ -295,12 +300,18 @@ func parseCommand(args []string) (string, []string) {
 	}
 }
 
-func parseOption(arg string, args []string) (string, []string) {
-	if len(args) == 0 || len(args[0]) == 0 || strings.HasPrefix(args[0], "-") {
-		failMissingOptValue(arg)
+func parseOptionValue(opt string, args []string) (string, []string) {
+	value := ""
+
+	if len(args) > 0 {
+		value = trim(args[0])
 	}
 
-	return args[0], args[1:]
+	if len(value) == 0 || strings.HasPrefix(value, "-") {
+		failMissingOptValue(opt)
+	}
+
+	return value, args[1:]
 }
 
 func performTriggerAction() {
@@ -333,6 +344,7 @@ func performUploadAction() {
 	ua := newUploadAction(
 		agentBuildPath,
 		agentUploadToken,
+		agentAppID,
 		agentVariantName,
 		agentGitCommit,
 		agentGitBranch,
@@ -349,12 +361,12 @@ func performUploadAction() {
 		fail(err)
 	}
 
-	fmt.Printf("\nBuild ‘%s’ successfully uploaded to Waldo!\n", filepath.Base(agentBuildPath))
+	fmt.Printf("\nBuild %q successfully uploaded to Waldo!\n", filepath.Base(agentBuildPath))
 }
 
 func summarize(value string) string {
 	if len(value) > 0 {
-		return fmt.Sprintf("‘%s’", value)
+		return fmt.Sprintf("%q", value)
 	} else {
 		return "(none)"
 	}
@@ -379,5 +391,9 @@ func summarizeSecure(value string) string {
 		value = prefix + secure[0:suffixLen]
 	}
 
-	return fmt.Sprintf("‘%s’", value)
+	return fmt.Sprintf("%q", value)
+}
+
+func trim(s string) string {
+	return strings.TrimFunc(s, unicode.IsSpace)
 }
