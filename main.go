@@ -10,7 +10,7 @@ import (
 
 const (
 	agentName    = "Waldo Agent"
-	agentVersion = "2.4.0"
+	agentVersion = "2.4.1"
 
 	defaultAPIBuildNewEndpoint = "https://api.waldo.com/1.0/applications/${APP_ID}/versions"
 	defaultAPIBuildOldEndpoint = "https://api.waldo.com/versions"
@@ -386,9 +386,8 @@ func summarizeSecure(value string) string {
 
 		prefix := value[0:prefixLen]
 		suffixLen := len(value) - len(prefix)
-		secure := "********************************"
 
-		value = prefix + secure[0:suffixLen]
+		value = prefix + strings.Repeat("*", suffixLen)
 	}
 
 	return fmt.Sprintf("%q", value)
