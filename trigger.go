@@ -128,7 +128,7 @@ func (ta *triggerAction) triggerRun(retryAllowed bool) (bool, error) {
 	req, err := http.NewRequest("POST", url, strings.NewReader(body))
 
 	if err != nil {
-		return false, fmt.Errorf("Unable to trigger run on Waldo, error: %v, url: %s", err, url)
+		return false, fmt.Errorf("Unable to trigger run on Waldo, error: %v, url: %q", err, url)
 	}
 
 	req.Header.Add("Authorization", ta.authorization())
@@ -140,7 +140,7 @@ func (ta *triggerAction) triggerRun(retryAllowed bool) (bool, error) {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		return retryAllowed, fmt.Errorf("Unable to trigger run on Waldo, error: %v, url: %s", err, url)
+		return retryAllowed, fmt.Errorf("Unable to trigger run on Waldo, error: %v, url: %q", err, url)
 	}
 
 	dumpResponse(ta.userVerbose, resp, true)

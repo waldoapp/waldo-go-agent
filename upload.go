@@ -33,6 +33,7 @@ type uploadAction struct {
 	flavor              string
 	gitInfo             *gitInfo
 	rtInfo              *rtInfo
+	uploadMetadata      *UploadMetadata
 	validated           bool
 }
 
@@ -235,25 +236,39 @@ func (ua *uploadAction) createBuildPayload() error {
 	switch ua.buildSuffix {
 	case "apk":
 		if !isRegular(ua.absBuildPath) {
-			return fmt.Errorf("Unable to read build at ‘%s’", ua.absBuildPath)
+			return fmt.Errorf("Unable to read build at %q", ua.absBuildPath)
 		}
 
 		return nil
 
 	case "app":
 		if !isDir(ua.absBuildPath) {
-			return fmt.Errorf("Unable to read build at ‘%s’", ua.absBuildPath)
+			return fmt.Errorf("Unable to read build at %q", ua.absBuildPath)
 		}
 
 		return zipFolder(ua.absBuildPayloadPath, parentPath, buildName)
 
 	default:
-		return fmt.Errorf("Unable to read build at ‘%s’", ua.absBuildPath)
+		return fmt.Errorf("Unable to read build at %q", ua.absBuildPath)
 	}
 }
 
 func (ua *uploadAction) errorContentType() string {
 	return jsonContentType
+}
+
+func (ua *uploadAction) extractUploadMetadata(resp *http.Response, host string) (*UploadMetadata, error) {
+	ur, err := parseUploadResponse(resp)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &UploadMetadata{
+		AppID:        ur.AppID,
+		AppVersionID: ur.AppVersionID,
+		Host:         host,
+		UploadTime:   time.Now()}, nil
 }
 
 func (ua *uploadAction) makeBuildURL() string {
@@ -326,26 +341,6 @@ func (ua *uploadAction) makeErrorURL() string {
 	return errorURL
 }
 
-func (ua *uploadAction) saveUploadMetadata(resp *http.Response, host string) error {
-	ur, err := parseUploadResponse(resp)
-
-	if err == nil {
-		um := &UploadMetadata{
-			AppID:        ur.AppID,
-			AppVersionID: ur.AppVersionID,
-			Host:         host,
-			UploadTime:   time.Now()}
-
-		err = um.save()
-	}
-
-	if err != nil {
-		return fmt.Errorf("Unable to save upload metadata locally, error: %v", err)
-	}
-
-	return nil
-}
-
 func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 	fmt.Printf("Uploading build to Waldo…\n")
 
@@ -354,7 +349,7 @@ func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 	file, err := os.Open(ua.absBuildPayloadPath)
 
 	if err != nil {
-		return false, fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %s", err, url)
+		return false, fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %q", err, url)
 	}
 
 	defer file.Close()
@@ -368,7 +363,7 @@ func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 	req, err := http.NewRequest("POST", url, file)
 
 	if err != nil {
-		return false, fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %s", err, url)
+		return false, fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %q", err, url)
 	}
 
 	req.Header.Add("Authorization", ua.authorization())
@@ -384,7 +379,7 @@ func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		return retryAllowed, fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %s", err, url)
+		return retryAllowed, fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %q", err, url)
 	}
 
 	dumpResponse(ua.userVerbose, resp, true)
@@ -394,10 +389,16 @@ func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 	err = ua.checkBuildStatus(resp)
 
 	if err == nil {
-		err2 := ua.saveUploadMetadata(resp, req.URL.Host)
+		um, err2 := ua.extractUploadMetadata(resp, req.URL.Host)
 
-		if err2 != nil {
-			emitError(err2)
+		if err2 == nil {
+			err2 = um.save()
+		}
+
+		if err2 == nil {
+			ua.uploadMetadata = um
+		} else {
+			emitError(fmt.Errorf("Unable to save upload metadata locally, error: %v", err2))
 		}
 	}
 
@@ -433,7 +434,7 @@ func (ua *uploadAction) uploadError(err error, retryAllowed bool) (bool, error) 
 	req, err := http.NewRequest("POST", url, strings.NewReader(body))
 
 	if err != nil {
-		return false, fmt.Errorf("Unable to upload error to Waldo, error: %v, url: %s", err, url)
+		return false, fmt.Errorf("Unable to upload error to Waldo, error: %v, url: %q", err, url)
 	}
 
 	req.Header.Add("Authorization", ua.authorization())
@@ -445,7 +446,7 @@ func (ua *uploadAction) uploadError(err error, retryAllowed bool) (bool, error) 
 	resp, err := client.Do(req)
 
 	if err != nil {
-		return retryAllowed, fmt.Errorf("Unable to upload error to Waldo, error: %v, url: %s", err, url)
+		return retryAllowed, fmt.Errorf("Unable to upload error to Waldo, error: %v, url: %q", err, url)
 	}
 
 	// dumpResponse(ua.userVerbose, resp, true)

@@ -19,7 +19,7 @@ func appendIfNotEmpty(payload *string, key string, value string) {
 		*payload += ","
 	}
 
-	*payload += fmt.Sprintf(`"%s":"%s"`, key, value)
+	*payload += fmt.Sprintf("%q:%q", key, value)
 }
 
 func determineBuildPayloadPath(workingPath, buildPath, buildSuffix string) string {
@@ -98,6 +98,6 @@ func validateBuildPath(buildPath string) (string, string, string, error) {
 		return buildPath, buildSuffix, "iOS", nil
 
 	default:
-		return "", "", "", fmt.Errorf("File extension of build at ‘%s’ is not recognized", buildPath)
+		return "", "", "", fmt.Errorf("File extension of build at %q is not recognized", buildPath)
 	}
 }

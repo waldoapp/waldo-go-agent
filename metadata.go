@@ -18,6 +18,22 @@ type UploadMetadata struct {
 
 //-----------------------------------------------------------------------------
 
+func (um *UploadMetadata) string() string {
+	if um == nil {
+		return ""
+	}
+
+	data, err := json.Marshal(um)
+
+	if err != nil {
+		return ""
+	}
+
+	return string(data)
+}
+
+//-----------------------------------------------------------------------------
+
 func (um *UploadMetadata) save() error {
 	path, err := os.UserHomeDir()
 
