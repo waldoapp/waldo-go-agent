@@ -10,7 +10,7 @@ import (
 
 const (
 	agentName    = "Waldo Agent"
-	agentVersion = "2.4.1"
+	agentVersion = "2.5.0"
 
 	defaultAPIBuildNewEndpoint = "https://api.waldo.com/1.0/applications/${APP_ID}/versions"
 	defaultAPIBuildOldEndpoint = "https://api.waldo.com/versions"
@@ -362,6 +362,10 @@ func performUploadAction() {
 	}
 
 	fmt.Printf("\nBuild %q successfully uploaded to Waldo!\n", filepath.Base(agentBuildPath))
+
+	if umString := ua.uploadMetadata.string(); len(umString) > 0 {
+		fmt.Printf("\n%s\n", umString)
+	}
 }
 
 func summarize(value string) string {

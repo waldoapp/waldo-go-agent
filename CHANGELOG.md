@@ -7,6 +7,12 @@ This project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [2.5.0] - 2024-05-01
+
+### Added
+
+- Print JSON metadata to standard output upon successful upload.
+
 ## [2.4.1] - 2024-04-08
 
 ### Fixed
@@ -18,7 +24,7 @@ This project adheres to [Semantic Versioning].
 ### Added
 
 - Add support for uploading with user token and app ID.
-****
+
 ### Changed
 
 - Modify help and error messages to more closely align with Waldo CLI.
@@ -87,7 +93,9 @@ This project adheres to [Semantic Versioning].
 
 Initial public release of rewritten agent.
 
-[Unreleased]:   https://github.com/waldoapp/waldo-go-agent/compare/2.4.0...HEAD
+[Unreleased]:   https://github.com/waldoapp/waldo-go-agent/compare/2.5.0...HEAD
+[2.5.0]:        https://github.com/waldoapp/waldo-go-agent/compare/2.4.1...2.5.0
+[2.4.1]:        https://github.com/waldoapp/waldo-go-agent/compare/2.4.0...2.4.1
 [2.4.0]:        https://github.com/waldoapp/waldo-go-agent/compare/2.3.1...2.4.0
 [2.3.1]:        https://github.com/waldoapp/waldo-go-agent/compare/2.3.0...2.3.1
 [2.3.0]:        https://github.com/waldoapp/waldo-go-agent/compare/2.2.0...2.3.0
