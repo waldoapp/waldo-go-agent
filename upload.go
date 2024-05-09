@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -30,9 +32,13 @@ type uploadAction struct {
 	absWorkingPath      string
 	buildSuffix         string
 	ciInfo              *ciInfo
+	failureBody         any
+	failureHeaders      any
+	failureStatusCode   int
 	flavor              string
 	gitInfo             *gitInfo
 	rtInfo              *rtInfo
+	uploadID            string
 	uploadMetadata      *UploadMetadata
 	validated           bool
 }
@@ -56,17 +62,20 @@ func newUploadAction(buildPath, uploadToken, appID, variantName, gitCommit, gitB
 //-----------------------------------------------------------------------------
 
 type ErrorPayloadJSON struct {
-	AgentName      string `json:"agentName,omitempty"`
-	AgentVersion   string `json:"agentVersion,omitempty"`
-	Arch           string `json:"arch,omitempty"`
-	CI             string `json:"ci,omitempty"`
-	CIGitBranch    string `json:"ciGitBranch,omitempty"`
-	CIGitCommit    string `json:"ciGitCommit,omitempty"`
-	Message        string `json:"message,omitempty"`
-	Platform       string `json:"platform,omitempty"`
-	Retry          string `json:"retry,omitempty"`
-	WrapperName    string `json:"wrapperName,omitempty"`
-	WrapperVersion string `json:"wrapperVersion,omitempty"`
+	AgentName         string `json:"agentName,omitempty"`
+	AgentVersion      string `json:"agentVersion,omitempty"`
+	Arch              string `json:"arch,omitempty"`
+	CI                string `json:"ci,omitempty"`
+	CIGitBranch       string `json:"ciGitBranch,omitempty"`
+	CIGitCommit       string `json:"ciGitCommit,omitempty"`
+	FailureBody       any    `json:"failureBody,omitempty"`
+	FailureHeaders    any    `json:"failureHeaders,omitempty"`
+	FailureStatusCode int    `json:"failureStatusCode"`
+	Message           string `json:"message,omitempty"`
+	Platform          string `json:"platform,omitempty"`
+	Retry             int    `json:"retry"`
+	WrapperName       string `json:"wrapperName,omitempty"`
+	WrapperVersion    string `json:"wrapperVersion,omitempty"`
 }
 
 //-----------------------------------------------------------------------------
@@ -119,6 +128,10 @@ func (ua *uploadAction) inferredGitCommit() string {
 	return ua.gitInfo.commit
 }
 
+func (ua *uploadAction) retry() string {
+	return strconv.Itoa(ua.retryCount)
+}
+
 func (ua *uploadAction) uploadToken() string {
 	return ua.userUploadToken
 }
@@ -129,10 +142,6 @@ func (ua *uploadAction) variantName() string {
 
 func (ua *uploadAction) version() string {
 	return ua.rtInfo.version()
-}
-
-func (ua *uploadAction) retry() string {
-	return strconv.Itoa(ua.retryCount)
 }
 
 //-----------------------------------------------------------------------------
@@ -181,6 +190,7 @@ func (ua *uploadAction) validate() error {
 	ua.ciInfo = detectCIInfo(true)
 	ua.flavor = flavor
 	ua.gitInfo = inferGitInfo(ua.ciInfo.skipCount)
+	ua.uploadID = randomUploadID()
 	ua.validated = true
 
 	return nil
@@ -209,7 +219,11 @@ func (ua *uploadAction) checkBuildStatus(resp *http.Response) error {
 	status := resp.StatusCode
 
 	if status == 401 {
-		return fmt.Errorf("Upload token is invalid or missing!")
+		return errors.New("Upload token is invalid or missing!")
+	}
+
+	if status == 403 && ua.isWAFResponse(resp) {
+		return errors.New("Upload build blocked by WAF server!")
 	}
 
 	if status < 200 || status > 299 {
@@ -221,6 +235,10 @@ func (ua *uploadAction) checkBuildStatus(resp *http.Response) error {
 
 func (ua *uploadAction) checkErrorStatus(resp *http.Response) error {
 	status := resp.StatusCode
+
+	if status == 403 && ua.isWAFResponse(resp) {
+		return errors.New("Upload error blocked by WAF server!")
+	}
 
 	if status < 200 || status > 299 {
 		return fmt.Errorf("Unable to upload error to Waldo, HTTP status: %d", status)
@@ -271,6 +289,34 @@ func (ua *uploadAction) extractUploadMetadata(resp *http.Response, host string) 
 		UploadTime:   time.Now()}, nil
 }
 
+func (ua *uploadAction) fetchBody(resp *http.Response) any {
+	body, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		return nil
+	}
+
+	var jsonBody any
+
+	err = json.Unmarshal(body, &jsonBody)
+
+	if err != nil {
+		return nil
+	}
+
+	return jsonBody
+}
+
+func (ua *uploadAction) isWAFResponse(resp *http.Response) bool {
+	server := resp.Header.Get("Server")
+
+	if len(server) == 0 {
+		return false
+	}
+
+	return strings.HasPrefix(server, "awselb/")
+}
+
 func (ua *uploadAction) makeBuildURL() string {
 	buildURL := ua.userOverrides["apiBuildEndpoint"]
 
@@ -309,17 +355,20 @@ func (ua *uploadAction) makeBuildURL() string {
 
 func (ua *uploadAction) makeErrorPayload(err error) (string, error) {
 	payload := ErrorPayloadJSON{
-		AgentName:      agentName,
-		AgentVersion:   agentVersion,
-		Arch:           ua.rtInfo.arch,
-		CI:             ua.ciInfo.provider.string(),
-		CIGitBranch:    ua.ciInfo.gitBranch,
-		CIGitCommit:    ua.ciInfo.gitCommit,
-		Message:        err.Error(),
-		Platform:       ua.rtInfo.platform,
-		Retry:          ua.retry(),
-		WrapperName:    ua.userOverrides["wrapperName"],
-		WrapperVersion: ua.userOverrides["wrapperVersion"],
+		AgentName:         agentName,
+		AgentVersion:      agentVersion,
+		Arch:              ua.rtInfo.arch,
+		CI:                ua.ciInfo.provider.string(),
+		CIGitBranch:       ua.ciInfo.gitBranch,
+		CIGitCommit:       ua.ciInfo.gitCommit,
+		FailureBody:       ua.failureBody,
+		FailureHeaders:    ua.failureHeaders,
+		FailureStatusCode: ua.failureStatusCode,
+		Message:           err.Error(),
+		Platform:          ua.rtInfo.platform,
+		Retry:             ua.retryCount,
+		WrapperName:       ua.userOverrides["wrapperName"],
+		WrapperVersion:    ua.userOverrides["wrapperVersion"],
 	}
 
 	data, err := json.Marshal(payload)
@@ -349,7 +398,7 @@ func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 	file, err := os.Open(ua.absBuildPayloadPath)
 
 	if err != nil {
-		return false, fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %q", err, url)
+		return false, ua.wrapUploadError("build", err, url)
 	}
 
 	defer file.Close()
@@ -363,7 +412,7 @@ func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 	req, err := http.NewRequest("POST", url, file)
 
 	if err != nil {
-		return false, fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %q", err, url)
+		return false, ua.wrapUploadError("build", err, url)
 	}
 
 	req.Header.Add("Authorization", ua.authorization())
@@ -373,13 +422,14 @@ func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 	}
 
 	req.Header.Add("User-Agent", ua.userAgent())
+	req.Header.Add("X-Upload-Id", ua.uploadID)
 
 	dumpRequest(ua.userVerbose, req, false)
 
 	resp, err := client.Do(req)
 
 	if err != nil {
-		return retryAllowed, fmt.Errorf("Unable to upload build to Waldo, error: %v, url: %q", err, url)
+		return retryAllowed, ua.wrapUploadError("build", err, url)
 	}
 
 	dumpResponse(ua.userVerbose, resp, true)
@@ -400,6 +450,10 @@ func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 		} else {
 			emitError(fmt.Errorf("Unable to save upload metadata locally, error: %v", err2))
 		}
+	} else {
+		ua.failureBody = ua.fetchBody(resp)
+		ua.failureHeaders = resp.Header
+		ua.failureStatusCode = resp.StatusCode
 	}
 
 	return retryAllowed && shouldRetry(resp), err
@@ -424,7 +478,9 @@ func (ua *uploadAction) uploadBuildWithRetry() error {
 
 func (ua *uploadAction) uploadError(err error, retryAllowed bool) (bool, error) {
 	url := ua.makeErrorURL()
+
 	body, err := ua.makeErrorPayload(err)
+
 	if err != nil {
 		return false, err
 	}
@@ -434,22 +490,23 @@ func (ua *uploadAction) uploadError(err error, retryAllowed bool) (bool, error) 
 	req, err := http.NewRequest("POST", url, strings.NewReader(body))
 
 	if err != nil {
-		return false, fmt.Errorf("Unable to upload error to Waldo, error: %v, url: %q", err, url)
+		return false, ua.wrapUploadError("error", err, url)
 	}
 
 	req.Header.Add("Authorization", ua.authorization())
 	req.Header.Add("Content-Type", ua.errorContentType())
 	req.Header.Add("User-Agent", ua.userAgent())
+	req.Header.Add("X-Upload-Id", ua.uploadID)
 
-	// dumpRequest(ua.userVerbose, req, true)
+	dumpRequest(ua.userVerbose, req, true)
 
 	resp, err := client.Do(req)
 
 	if err != nil {
-		return retryAllowed, fmt.Errorf("Unable to upload error to Waldo, error: %v, url: %q", err, url)
+		return retryAllowed, ua.wrapUploadError("error", err, url)
 	}
 
-	// dumpResponse(ua.userVerbose, resp, true)
+	dumpResponse(ua.userVerbose, resp, true)
 
 	defer resp.Body.Close()
 
@@ -486,4 +543,8 @@ func (ua *uploadAction) userAgent() string {
 	}
 
 	return fmt.Sprintf("Waldo %s/%s v%s", ci, ua.flavor, version)
+}
+
+func (ua *uploadAction) wrapUploadError(desc string, err error, url string) error {
+	return fmt.Errorf("Unable to upload %s to Waldo, error: %v, url: %q", desc, err, url)
 }
