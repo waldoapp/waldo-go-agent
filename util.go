@@ -2,12 +2,16 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 func appendIfNotEmpty(payload *string, key string, value string) {
@@ -56,6 +60,16 @@ func isRegular(path string) bool {
 	}
 
 	return fi.Mode().IsRegular()
+}
+
+func randomUploadID() string {
+	uuid, err := uuid.NewRandom()
+
+	if err != nil {
+		return fmt.Sprintf("%x", rand.Uint64())
+	}
+
+	return strings.ToLower(hex.EncodeToString(uuid[:]))
 }
 
 func run(name string, args ...string) (string, string, error) {

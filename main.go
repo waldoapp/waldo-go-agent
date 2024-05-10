@@ -10,7 +10,7 @@ import (
 
 const (
 	agentName    = "Waldo Agent"
-	agentVersion = "2.5.0"
+	agentVersion = "2.5.1"
 
 	defaultAPIBuildNewEndpoint = "https://api.waldo.com/1.0/applications/${APP_ID}/versions"
 	defaultAPIBuildOldEndpoint = "https://api.waldo.com/versions"
