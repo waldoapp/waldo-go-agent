@@ -10,7 +10,7 @@ import (
 
 const (
 	agentName    = "Waldo Agent"
-	agentVersion = "2.5.1"
+	agentVersion = "2.5.2"
 
 	defaultAPIBuildNewEndpoint = "https://api.waldo.com/1.0/applications/${APP_ID}/versions"
 	defaultAPIBuildOldEndpoint = "https://api.waldo.com/versions"
@@ -107,7 +107,7 @@ ARGUMENTS:
   <build-path>            The path to the build artifact to upload.
 
 OPTIONS:
-      --app_id <a>        An app ID (if not using an app token).
+      --app_id <a>        An app ID (if not using a CI token).
       --git_branch <b>    The originating git commit branch name.
       --git_commit <c>    The originating git commit hash.
       --upload_token <t>  The upload token (overrides WALDO_UPLOAD_TOKEN).

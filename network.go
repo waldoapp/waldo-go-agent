@@ -10,7 +10,6 @@ import (
 const (
 	binaryContentType = "application/octet-stream"
 	jsonContentType   = "application/json"
-	zipContentType    = "application/zip"
 )
 
 func addIfNotEmpty(query *url.Values, key string, value string) {

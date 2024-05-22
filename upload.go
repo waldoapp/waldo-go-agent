@@ -203,16 +203,7 @@ func (ua *uploadAction) authorization() string {
 }
 
 func (ua *uploadAction) buildContentType() string {
-	switch ua.buildSuffix {
-	case "apk":
-		return binaryContentType
-
-	case "app":
-		return zipContentType
-
-	default:
-		return ""
-	}
+	return binaryContentType
 }
 
 func (ua *uploadAction) checkBuildStatus(resp *http.Response) error {
@@ -403,6 +394,12 @@ func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 
 	defer file.Close()
 
+	fi, err := file.Stat()
+
+	if err != nil {
+		return false, ua.wrapUploadError("build", err, url)
+	}
+
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSHandshakeTimeout:   0,
@@ -415,12 +412,10 @@ func (ua *uploadAction) uploadBuild(retryAllowed bool) (bool, error) {
 		return false, ua.wrapUploadError("build", err, url)
 	}
 
+	req.ContentLength = fi.Size()
+
 	req.Header.Add("Authorization", ua.authorization())
-
-	if contentType := ua.buildContentType(); len(contentType) > 0 {
-		req.Header.Add("Content-Type", contentType)
-	}
-
+	req.Header.Add("Content-Type", ua.buildContentType())
 	req.Header.Add("User-Agent", ua.userAgent())
 	req.Header.Add("X-Upload-Id", ua.uploadID)
 
@@ -492,6 +487,8 @@ func (ua *uploadAction) uploadError(err error, retryAllowed bool) (bool, error) 
 	if err != nil {
 		return false, ua.wrapUploadError("error", err, url)
 	}
+
+	req.ContentLength = int64(len([]byte(body)))
 
 	req.Header.Add("Authorization", ua.authorization())
 	req.Header.Add("Content-Type", ua.errorContentType())

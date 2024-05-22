@@ -7,6 +7,12 @@ This project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [2.5.2] - 2024-05-22
+
+### Changed
+
+- Improve upload performance.
+
 ## [2.5.1] - 2024-05-09
 
 ### Added
@@ -108,7 +114,8 @@ This project adheres to [Semantic Versioning].
 
 Initial public release of rewritten agent.
 
-[Unreleased]:   https://github.com/waldoapp/waldo-go-agent/compare/2.5.1...HEAD
+[Unreleased]:   https://github.com/waldoapp/waldo-go-agent/compare/2.5.2...HEAD
+[2.5.2]:        https://github.com/waldoapp/waldo-go-agent/compare/2.5.1...2.5.2
 [2.5.1]:        https://github.com/waldoapp/waldo-go-agent/compare/2.5.0...2.5.1
 [2.5.0]:        https://github.com/waldoapp/waldo-go-agent/compare/2.4.1...2.5.0
 [2.4.1]:        https://github.com/waldoapp/waldo-go-agent/compare/2.4.0...2.4.1
