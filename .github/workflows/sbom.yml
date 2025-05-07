@@ -1,0 +1,32 @@
+name: SBOM generation
+
+on:
+  push:
+    branches:
+      - master
+      - '**sbom**'
+
+permissions:
+  contents: read
+  attestations: write
+  id-token: write
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Generate and Upload SBOM
+        uses: Tricentis-Infrastructure/templates/.github/actions/sbom/sbom-generation@main
+        with:
+          language: 'golang'
+          aws-role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME_SHARED_SVC_CREATE_SBOM }}
+          output: 'sbom-output-waldo-go-agent.sbom.json'
